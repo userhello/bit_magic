@@ -1,6 +1,6 @@
 require_relative '../adapter_helper'
 
-adapter_require('rails') do
+adapter_require('rails', ['activerecord', nil, 'active_record']) do
 
   require_relative '../../lib/bit_magic/railtie'
 

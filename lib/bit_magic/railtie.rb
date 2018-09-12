@@ -8,14 +8,18 @@ module BitMagic
       # TODO: Consider switching this over to checking for the specific ORM
       # and loading into only that ORM
       
-      if defined?(ActiveRecord) and !ActiveRecord::Base.is_a?(Adapters::ActiveRecordAdapter)
+      if defined?(ActiveRecord)
         require_relative "./adapters/active_record_adapter"
-        ActiveRecord::Base.include Adapters::ActiveRecordAdapter
+        if !ActiveRecord::Base.is_a?(Adapters::ActiveRecordAdapter)
+          ActiveRecord::Base.include Adapters::ActiveRecordAdapter
+        end
       end
       
-      if defined?(Mongoid::Document) and !Mongoid::Document.is_a?(Adapters::MongoidAdapter)
+      if defined?(Mongoid::Document)
         require_relative "./adapters/mongoid_adapter"
-        Mongoid::Document.include Adapters::MongoidAdapter
+        if !Mongoid::Document.is_a?(Adapters::MongoidAdapter)
+          Mongoid::Document.include Adapters::MongoidAdapter
+        end
       end
       
     end
