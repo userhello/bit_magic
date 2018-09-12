@@ -1,0 +1,24 @@
+PATH
+  remote: .
+  specs:
+    bit_magic (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    coco (0.15.0)
+    minitest (5.11.3)
+    rake (10.5.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bit_magic!
+  bundler (~> 1.16)
+  coco (~> 0.15)
+  minitest (~> 5.0)
+  rake (~> 10.0)
+
+BUNDLED WITH
+   1.16.4
