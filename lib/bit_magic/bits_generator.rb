@@ -86,8 +86,9 @@ module BitMagic
     # grows to 2**20 = 1048576. At 32 bits, 2**32 = 4294967296.
     #
     # Warning 2: We're using combinations to generate each individual number, so
-    # there's additional overhead causing O(n!) complexity. Use carefully when 
-    # you have large bit lists (more than 16 bits total). Check timing and memory.
+    # there's additional overhead causing O(n * 2^(n-1)) time complexity. Carefully  
+    # benchmark when you have large bit lists (more than 16 bits total) and
+    # check both timing and memory for your use case.
     # 
     # @param [optional, Array<Integer>] each_bits a list of bits used to generate
     #   the combination list. default: the list of bits given during initialization

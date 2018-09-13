@@ -80,8 +80,11 @@ field.read_field(1, 3, 2)
 
 Bits Generator is a generator for Integer bit representations or arrays of values that match certain bitwise criteria. The criteria are: 
 
-| Name / Alias            |  Criteria         |
-|------------------------ | ----------------- |
+| Name / Alias            |  Criteria /Action        |
+|------------------------ | ------------------------ |
+| bits_for(\*field\_names)| returns list of bits for given names |
+| each_value(each\_bits = nil, &block) | yields block for all available values from combinations of bits, optional: specify different list of bits |
+| all_values(each\_bits = nil) | returns an array with all available values from combinations of bits, optional: specify different list of bits |
 | with\_any / any\_of     | any of these bits specified are true |
 | with\_all / all\_of     | all of these bits are true |
 | without\_any / none\_of | none of these bits are true |
@@ -90,7 +93,9 @@ Bits Generator is a generator for Integer bit representations or arrays of value
 
 These all have a corresponding *_number method that returns an integer. (equal\_to's version is named equal\_to\_numbers and returns an array of two numbers, one for bit values 1 and the other for bit values 0).
 
-* Warning: Although bitwise operations are fast, when using this class, you need to be careful when you use lots of bits (more than 20) to return arrays because memory usage grows exponentially! 2**20 is over 1 million, that's 8 megabytes of memory for the array on a 64-bit OS, with 24 bits, it explodes to 134 megabytes!
+* Warning: Although bitwise operations are fast, when using this class, you need to be careful when you use lots of bits (more than 16) to return arrays because memory usage grows exponentially! 2**20 is over 1 million, that's 8 megabytes of memory for the array on a 64-bit OS, with 24 bits, it explodes to 134 megabytes!
+
+* Warning: Also, because we use combinations to iterate over the combinations of all possible bit values, the time complexity is O(n * 2^(n-1)) for `each_value` and `all_values`. Please carefully benchmark your use case for time and memory usage if you have more than 16 bits. 
 
 Example:
 
@@ -163,29 +168,29 @@ The bit field definition above will define methods based on the name given. For 
     total bits in the field)
     This is equivalent to the conditional: `field[0] = value[0] and field[1] = value[1] ...`
   * YourModel.settings\_notify [1]
-    shorthand for `settings\_with\_all(:notify)`
+    shorthand for `settings_with_all(:notify)`
   * YourModel.settings\_not\_notify [1]
-    shorthand for `settings\_without\_all(:notify)`
+    shorthand for `settings_without_all(:notify)`
   * YourModel.settings\_max\_backlog [1]
-    shorthand for `settings\_with\_all(:max\_backlog)`
+    shorthand for `settings_with_all(:max_backlog)`
     note that because this is a field with 3 bits, it's equivalent to max\_backlog=4
   * YourModel.settings\_not\_max\_backlog [1]
-    shorthand for `settings\_without\_all(:max\_backlog)`
+    shorthand for `settings_without_all(:max_backlog)`
   * YourModel.settings\_max\_backlog\_equals(val) [1]
     returns a query where max\_backlog equals the value. Note: Only compares bit up to 3 bits because that's how big max_backlog is.
-  * YourModel.settings\_disabled [1] - shorthand for `settings\_with\_all(:disabled)`
-  * YourModel.settings\_not\_disabled [1] - shorthand for `settings\_without\_all(:disabled)`
+  * YourModel.settings\_disabled [1] - shorthand for `settings_with_all(:disabled)`
+  * YourModel.settings\_not\_disabled [1] - shorthand for `settings_without_all(:disabled)`
 * Instance Methods
   * YourModel#settings - returns a Bits object for you to work with fields directly
-  * YourModel#settings\_enabled?(\*field\_names) - shorthand for `settings.enabled?(\*field\_names)`
-  * YourModel#settings\_disabled?(\*field\_names) - shorthand for `settings.disabled?(\*field\_names)`
+  * YourModel#settings\_enabled?(\*field\_names) - shorthand for `settings.enabled?(*field_names)`
+  * YourModel#settings\_disabled?(\*field\_names) - shorthand for `settings.disabled?(*field_names)`
   * YourModel#notify [2] - returns 1 or 0, shorthand for `settings.read(:notify)`
   * YourModel#notify? [2] - returns true or false, shorthand for `settings.read(:notify) == 1`
   * YourModel#notify=(val) [2] - sets value for notify flag, shorthand for `settings.write(:notify, val)`
   * YourModel#max\_backlog [2] - returns a number from 0 to 7 (3 bits), shorthand for `settings.read(:max_backlog)`
   * YourModel#max\_backlog=(val) [2]
     sets value for max\_backlog, only cares about the last 3 bits, so numbers larger than 3 bits are truncated.
-    shorthand for `settings.write(:max\_backlog, val)`
+    shorthand for `settings.write(:max_backlog, val)`
   * YourModel#disabled [2] - returns 1 or 0, shorthand for `settings.read(:disabled)`
   * YourModel#disabled? [2] - returns true or false, shorthand for `settings.read(:disabled) == 1`
   * YourModel#disabled=(val) [2] - sets value for disabled
@@ -217,19 +222,38 @@ ActiveRecord::Base.include BitMagic::Adapters::ActiveRecordAdapter
 Otherwise, you'll need to include it on every model where you want to use bit_magic:
 
 ```ruby
-class YourModel < ActiveRecord::Base
+class ArExample < ActiveRecord::Base
   # the include below can be removed if activated globally above
   include BitMagic::Adapters::ActiveRecordAdapter
   
-  # this defines the bits we will be using for our bitfield.
-  # total usable bits is based off what int you are using in the database.
+  # This defines the bits we will be using for our bitfield.
+  # Total usable bits is based off what int you are using in the table.
   bit_magic :example, 0 => :is_odd, 1 => :one, 2 => :two, 3 => :wiggle, [4, 5, 6] => :my_shoe
 end
 ```
 
 You must have an integer column or attribute in the table to use as the bit field container. By default, we assume the column is named `flags`. It should be `NOT NULL` and have a default set.
 
-After defining `bit_magic :name`, you can use the methods signature described above.
+After defining `bit_magic :name`, you can use the methods signature described above. Below is an small example based on the definition above.
+
+```ruby
+ArExample.create(:is_odd => true, :wiggle => true, :my_shoe => 7)
+current = ArExample.example_my_shoe_equals(7).last
+current.is_odd?
+#=> true
+current.two?
+#=> false
+current.wiggle
+#=> 1
+current.my_shoe
+#=> 7
+current.flags
+#=> 121
+current.is_odd = false
+current.two = true
+current.flags
+#=> 124
+```
 
 #### Mongoid
 
@@ -243,19 +267,38 @@ Mongoid::Document.include BitMagic::Adapters::MongoidAdapter
 Otherwise, you'll need to include it on every model where you want to use bit_magic:
 
 ```ruby
-class YourModel
+class MongoExample
   include Mongoid::Document
   
-  # the include below can be removed if activated globally above
+  # The include below can be removed if activated globally above
   include BitMagic::Adapters::MongoidAdapter
   
-  # this defines the bits we will be using for our bitfield.
+  # This defines the bits we will be using for our bitfield.
   bit_magic :example, 0 => :is_odd, 1 => :one, 2 => :two, 3 => :wiggle, [4, 5, 6] => :my_shoe
   field :flags, type: Integer, default: 0
 end
 ```
 
 You must have an integer field or attribute in the table to use as the bit field container. By default, we assume the column is named `flags`.
+
+```ruby
+MongoExample.create(:is_odd => true, :wiggle => true, :my_shoe => 7)
+current = MongoExample.example_my_shoe_equals(7).last
+current.is_odd?
+#=> true
+current.two?
+#=> false
+current.wiggle
+#=> 1
+current.my_shoe
+#=> 7
+current.flags
+#=> 121
+current.is_odd = false
+current.two = true
+current.flags
+#=> 124
+```
 
 ### Custom Integrations
 
